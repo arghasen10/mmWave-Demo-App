@@ -10,9 +10,10 @@ dependencies = [
     "matplotlib>=3.7.1",
     "ttkthemes>=3.2.2",
     "msgspec>=0.14.2",
+    "numba>=0.56.4",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 
 [tool.pyright]
-extraPaths = ["__pypackages__/3.11/lib/"]
+extraPaths = ["__pypackages__/3.10/lib/"]
