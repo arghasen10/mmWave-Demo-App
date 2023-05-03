@@ -17,7 +17,8 @@ from msgspec.json import decode
 
 from pathlib import Path
 
-par_path = Path(__file__).resolve().parent.parent
+assets_path = Path(__file__).parent.parent / "assets"
+data_path = Path(__file__).parent.parent / "data"
 
 
 class Schema(Struct):
@@ -79,65 +80,6 @@ class ReadDataThread(Thread):
         self._stop_event.set()
         self.join()
         self._close_file()
-
-
-# Graph for position
-fig_pos = Figure(figsize=(5, 5))
-ax_pos = fig_pos.add_subplot(111, xlim=(-11, 11), ylim=(-1, 21))
-ax_pos.set_title("Position")
-ax_pos.set_xlabel("X-Axis")
-ax_pos.set_ylabel("Y-Axis")
-(obj_pos,) = ax_pos.plot([], [], "o", lw=3)
-
-
-def animate_pos(_):
-    if not read_data.paused.is_set():
-        obj_pos.set_data(read_data.x_coord, read_data.y_coord)
-    return (obj_pos,)
-
-
-# Graph for doppler
-fig_dop = Figure(figsize=(8, 6))
-ax_dop = fig_dop.add_subplot(111)
-
-im = ax_dop.imshow(
-    np.zeros((16, 256), np.int32),
-    aspect="auto",
-    interpolation="gaussian",
-    cmap="viridis",
-    animated=True,
-)
-ax_dop.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-
-
-def animate_dop(_):
-    if not read_data.paused.is_set():
-        heatmap = read_data.doppz
-        # HACK: This hack is to set min max colors. This will slow down the
-        # function though.
-        im.set_clim(np.amin(heatmap), np.amax(heatmap))
-        im.set_data(heatmap)
-    return (im,)
-
-
-# Graph for noise profile
-fig_noise = Figure(figsize=(8, 6))
-ax_noise = fig_noise.add_subplot(111, xlim=(1, 256), ylim=(0, 150))
-ax_noise.set_title("Noise")
-ax_noise.set_xlabel("X-Axis")
-ax_noise.set_ylabel("dB")
-(obj_rp,) = ax_noise.plot([], [])
-(obj_noiserp,) = ax_noise.plot([], [])
-ax_noise.legend([obj_rp, obj_noiserp], ["rp_y", "noiserp_y"])
-
-noise_xaxis = np.arange(256) + 1
-
-
-def animate_noise(_):
-    if not read_data.paused.is_set():
-        obj_rp.set_data(noise_xaxis, read_data.rp_y)
-        obj_noiserp.set_data(noise_xaxis, read_data.noiserp_y)
-    return (obj_rp, obj_noiserp)
 
 
 class ConfigureFrame(ttk.Frame):
@@ -418,7 +360,7 @@ class App(ThemedTk):
         super().__init__()
 
         self.title("mmWave Visualizer")
-        icon = tk.PhotoImage(file=f"{par_path}/assets/ubinetlogo.png", master=self)
+        icon = tk.PhotoImage(file=f"{assets_path}/ubinetlogo.png", master=self)
         self.iconphoto(False, icon)
         width = self.winfo_screenwidth()
         height = self.winfo_screenheight()
@@ -448,6 +390,63 @@ class App(ThemedTk):
 read_data = ReadDataThread("../data/CCW_A_1.json")
 read_data.start()
 read_data.paused.set()
+
+# Graph for position
+fig_pos = Figure(figsize=(5, 5))
+ax_pos = fig_pos.add_subplot(111, xlim=(-11, 11), ylim=(-1, 21))
+ax_pos.set_title("Position")
+ax_pos.set_xlabel("X-Axis")
+ax_pos.set_ylabel("Y-Axis")
+(obj_pos,) = ax_pos.plot([], [], "o", lw=3)
+
+
+def animate_pos(_):
+    if not read_data.paused.is_set():
+        obj_pos.set_data(read_data.x_coord, read_data.y_coord)
+    return (obj_pos,)
+
+
+# Graph for doppler
+fig_dop = Figure(figsize=(8, 6))
+ax_dop = fig_dop.add_subplot(111)
+im = ax_dop.imshow(
+    np.zeros((16, 256), np.int32),
+    aspect="auto",
+    interpolation="gaussian",
+    cmap="viridis",
+    animated=True,
+)
+ax_dop.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+
+
+def animate_dop(_):
+    if not read_data.paused.is_set():
+        heatmap = read_data.doppz
+        # HACK: This hack is to set min max colors. This will slow down the
+        # function though.
+        im.set_clim(np.amin(heatmap), np.amax(heatmap))
+        im.set_data(heatmap)
+    return (im,)
+
+
+# Graph for noise profile
+fig_noise = Figure(figsize=(8, 6))
+ax_noise = fig_noise.add_subplot(111, xlim=(1, 256), ylim=(0, 150))
+ax_noise.set_title("Noise")
+ax_noise.set_xlabel("X-Axis")
+ax_noise.set_ylabel("dB")
+(obj_rp,) = ax_noise.plot([], [])
+(obj_noiserp,) = ax_noise.plot([], [])
+ax_noise.legend([obj_rp, obj_noiserp], ["rp_y", "noiserp_y"])
+noise_xaxis = np.arange(256) + 1
+
+
+def animate_noise(_):
+    if not read_data.paused.is_set():
+        obj_rp.set_data(noise_xaxis, read_data.rp_y)
+        obj_noiserp.set_data(noise_xaxis, read_data.noiserp_y)
+    return (obj_rp, obj_noiserp)
+
 
 app = App()
 
