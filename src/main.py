@@ -1,15 +1,19 @@
 import time
+from threading import Thread, Event, Lock
+
 import tkinter as tk
-from multiprocessing import Event, Manager, Process
+from tkinter import filedialog
+from tkinter import messagebox
 from tkinter import ttk
+from ttkthemes import ThemedTk
 
 import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+
 from msgspec import Struct
 from msgspec.json import decode
-from ttkthemes import ThemedTk
 
 from pathlib import Path
 
@@ -24,44 +28,57 @@ class Schema(Struct):
     doppz: list[list[int]]
 
 
-class ReadData:
-    def __init__(self) -> None:
-        manager = Manager()
+class ReadDataThread(Thread):
+    def __init__(self, file_path):
+        super().__init__()
+        self.daemon = True
 
-        self.x_coord = manager.list()
-        self.y_coord = manager.list()
-        self.rp_y = manager.list()
-        self.noiserp_y = manager.list()
-        self.doppz = manager.list()
-        self.doppz.extend([[]])
+        self.paused = Event()
+        self._stop_event = Event()
 
-        self.play = Event()
+        try:
+            self.file = open(file_path, "rb")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
-        self.daemon_proc = Process(
-            target=self.json_reader_daemon,
-            args=(
-                self.x_coord,
-                self.y_coord,
-                self.rp_y,
-                self.noiserp_y,
-                self.doppz,
-                self.play,
-            ),
-            daemon=True,
-        )
+        self.lock = Lock()
+        self.x_coord = []
+        self.y_coord = []
+        self.rp_y = []
+        self.noiserp_y = []
+        self.doppz = [[]]
 
-    @staticmethod
-    def json_reader_daemon(x_coord, y_coord, rp_y, noiserp_y, doppz, play):
-        with open(f"{par_path}/dataset/LR_A_1.json", "rb") as f:
-            while play.wait():
-                line = f.readline()
-                data = decode(line, type=Schema)
-                x_coord[:] = data.x_coord
-                y_coord[:] = data.y_coord
-                rp_y[:] = data.rp_y
-                noiserp_y[:] = data.noiserp_y
-                doppz[:] = data.doppz
-                time.sleep(0.4)
+    def run(self):
+        while not self._stop_event.is_set():
+            if not self.paused.is_set():
+                data = decode(self.file.readline(), type=Schema)
+                with self.lock:
+                    self.x_coord[:] = data.x_coord
+                    self.y_coord[:] = data.y_coord
+                    self.rp_y[:] = data.rp_y
+                    self.noiserp_y[:] = data.noiserp_y
+                    self.doppz[:] = data.doppz
+            self._stop_event.wait(timeout=0.4)
+        self._close_file()
+
+    def _close_file(self):
+        if self.file:
+            self.file.close()
+            self.file = None
+
+    def change_file_path(self, file_path):
+        self.paused.set()
+        self._close_file()
+        try:
+            self.file = open(file_path, "rb")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            self.stop()
+
+    def stop(self):
+        self._stop_event.set()
+        self.join()
+        self._close_file()
 
 
 # Graph for position
@@ -74,7 +91,7 @@ ax_pos.set_ylabel("Y-Axis")
 
 
 def animate_pos(_):
-    if read_data.play.is_set():
+    if not read_data.paused.is_set():
         obj_pos.set_data(read_data.x_coord, read_data.y_coord)
     return (obj_pos,)
 
@@ -94,7 +111,7 @@ ax_dop.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 
 
 def animate_dop(_):
-    if read_data.play.is_set():
+    if not read_data.paused.is_set():
         heatmap = read_data.doppz
         # HACK: This hack is to set min max colors. This will slow down the
         # function though.
@@ -117,7 +134,7 @@ noise_xaxis = np.arange(256) + 1
 
 
 def animate_noise(_):
-    if read_data.play.is_set():
+    if not read_data.paused.is_set():
         obj_rp.set_data(noise_xaxis, read_data.rp_y)
         obj_noiserp.set_data(noise_xaxis, read_data.noiserp_y)
     return (obj_rp, obj_noiserp)
@@ -138,10 +155,8 @@ class ConfigureFrame(ttk.Frame):
         plot = ttk.LabelFrame(self, text="Plot selection")
         plot.grid(column=0, row=2, padx=10, pady=10, sticky=tk.NSEW)
 
-        send_btn = ttk.Button(
-            self, text="SEND CONFIG TO MMWAVE DEVICE", command=self.send_config
-        )
-        send_btn.grid(column=0, row=4, padx=10, pady=10, sticky=tk.E)
+        buttons = ttk.LabelFrame(self, text="File selection, or run through USB")
+        buttons.grid(column=0, row=3, padx=10, pady=10, sticky=tk.NSEW)
 
         setup.columnconfigure(0, weight=1)
         setup.columnconfigure(1, weight=2)
@@ -321,11 +336,35 @@ class ConfigureFrame(ttk.Frame):
         for widget in plot.winfo_children():
             widget.grid(padx=5, pady=5)
 
+        buttons.columnconfigure(0, weight=1)
+        buttons.columnconfigure(1, weight=1)
+        usefile_btn = ttk.Button(
+            buttons, text="RERUN PRELOADED ITERATION", command=self.read_and_graph_file
+        )
+        usefile_btn.grid(column=0, row=0, padx=10, pady=10, sticky=tk.E)
+        send_btn = ttk.Button(
+            buttons, text="SEND CONFIG TO MMWAVE DEVICE", command=self.send_config
+        )
+        send_btn.grid(column=1, row=0, padx=10, pady=10, sticky=tk.E)
+
+        for widget in buttons.winfo_children():
+            widget.grid(padx=5, pady=5)
+
+    def read_and_graph_file(self):
+        global read_data
+        read_data.paused.set()
+        file_path = filedialog.askopenfilename()
+        if file_path:
+            read_data.change_file_path(file_path)
+            read_data.paused.clear()
+        else:
+            messagebox.showerror("Error", "Select A File")
+
     def send_config(self):
         global read_data
-        read_data.play.clear()
+        read_data.paused.set()
         time.sleep(2)
-        read_data.play.set()
+        read_data.paused.clear()
 
 
 class PlotFrame(ttk.Frame):
@@ -406,9 +445,12 @@ class App(ThemedTk):
         notebook.add(frameplt, text="Plots")
 
 
-read_data = ReadData()
-read_data.daemon_proc.start()
+read_data = ReadDataThread("../data/CCW_A_1.json")
+read_data.start()
+read_data.paused.set()
+
 app = App()
+
 anim_pos = FuncAnimation(
     fig_pos, animate_pos, interval=400, blit=True, cache_frame_data=False
 )
@@ -422,4 +464,5 @@ anim_dop = FuncAnimation(
 anim_noise = FuncAnimation(
     fig_noise, animate_noise, interval=400, blit=True, cache_frame_data=False
 )
+
 app.mainloop()
