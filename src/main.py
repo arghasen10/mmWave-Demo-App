@@ -16,6 +16,8 @@ from msgspec import Struct
 from msgspec.json import decode
 
 from pathlib import Path
+from only_read import serialConfig, parseConfigFile, file_create, readAndParseData16xx
+
 
 assets_path = Path(__file__).parent.parent / "assets"
 data_path = Path(__file__).parent.parent / "data"
@@ -48,10 +50,42 @@ class ReadDataThread(Thread):
         self.rp_y = []
         self.noiserp_y = []
         self.doppz = [[]]
+        configs = {
+            "pointcloud": "Configurations/pointcloud_configuration.cfg",
+            "macro": "Configurations/macro_7fps.cfg",
+            "micro": "Configurations/micro_2fps.cfg",
+        }
+        configFileName = configs["macro"]
+        self.CLIport, self.Dataport = serialConfig(configFileName)
+        # Get the configuration parameters from the configuration file
+        self.configParameters = parseConfigFile(configFileName)
+        # print(configParameters)
+
+        # Main loop
+        self.detObj = {}
+        frameData = {}
+        currentIndex = 0
+        self.filename = file_create()
+
+        self.linecounter = 0
 
     def run(self):
         while not self._stop_event.is_set():
             if not self.paused.is_set():
+                self.linecounter += 1
+                if self.linecounter > 1000000000:
+                    self.linecounter = 0
+                    self.filename = file_create()
+
+                try:
+                    dataOk, frameNumber, finalObj = readAndParseData16xx(
+                        self.Dataport, self.configParameters, self.filename
+                    )
+                except KeyboardInterrupt:
+                    self.CLIport.write("sensorStop\n".encode())
+                    self.CLIport.close()
+                    self.Dataport.close()
+                    break
                 data = decode(self.file.readline(), type=Schema)
                 with self.lock:
                     self.x_coord[:] = data.x_coord
