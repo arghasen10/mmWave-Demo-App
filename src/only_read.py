@@ -13,17 +13,18 @@ import numpy as np
 import serial
 from dotenv import load_dotenv
 
-import fft
+# import fft
+from scipy.fftpack import fft
+# smooth
 
 load_dotenv(".env")
 os_name = os.environ.get("OS")
 framePeriodicity = 0
 configs = {
     "pointcloud": "Configurations/pointcloud_configuration.cfg",
-    "macro": "Configurations/macro_7fps.cfg",
+    "macro": "Configurations/macro_5fps.cfg",
     "micro": "Configurations/micro_2fps.cfg",
 }
-configFileName = configs["pointcloud"]
 # CLIport = {}
 # Dataport = {}
 byteBuffer = np.zeros(2**15, dtype="uint8")
@@ -102,7 +103,7 @@ def serialConfig(configFileName):
     config = [line.rstrip("\r\n") for line in open(configFileName)]
     for i in config:
         print(i)
-        # CLIport.write((i + "\n").encode())
+        CLIport.write((i + "\n").encode())
         time.sleep(0.01)
 
     return CLIport, Dataport
@@ -616,7 +617,6 @@ def readAndParseData16xx(Dataport, configParameters, filename):
                 finalObj.update(noiseObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
                 heatObj = processAzimuthHeatMap(byteBuffer, idX, configParameters)
-                finalObj.update(heatObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
                 dopplerObj = processRangeDopplerHeatMap(byteBuffer, idX)
                 finalObj.update(dopplerObj)
@@ -694,6 +694,13 @@ if __name__ == "__main__":
                 # Store the current frame into frameData
                 print(finalObj)
                 currentIndex += 1
+            if args.conf == "pointcloud":
+                time.sleep(0.03)
+            elif args.conf == "macro":
+                time.sleep(0.2)
+            else :
+                time.sleep(0.5)
+
 
             # time.sleep(0.03)  # Sampling frequency of 30 Hz
 
