@@ -96,8 +96,8 @@ def serialConfig(configFileName):
         Dataport = serial.Serial("/dev/ttyACM1", 921600)
 
     elif os_name == "Windows_NT":
-        CLIport = serial.Serial("COM3", 115200)
-        Dataport = serial.Serial("COM4", 921600)
+        CLIport = serial.Serial("COM6", 115200)
+        Dataport = serial.Serial("COM9", 921600)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip("\r\n") for line in open(configFileName)]
@@ -220,7 +220,7 @@ def change_conf_callback():
         "############################ changing configuration to macro ##########################"
     )
     time.sleep(2)
-    configFileName = "Configurations/macro_7fps.cfg"
+    configFileName = "Configurations/macro_5fps.cfg"
     CLIport, Dataport = serialConfig(configFileName)
     configParameters = parseConfigFile(configFileName)
 
@@ -383,7 +383,7 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
     return heatObj
 
 
-def processRangeDopplerHeatMap(byteBuffer, idX):
+def processRangeDopplerHeatMap(byteBuffer, idX, configParameters):
     # Get the number of bytes to read
     numBytes = (
         int(configParameters["numDopplerBins"])
@@ -618,7 +618,7 @@ def readAndParseData16xx(Dataport, configParameters, filename):
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
                 heatObj = processAzimuthHeatMap(byteBuffer, idX, configParameters)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
-                dopplerObj = processRangeDopplerHeatMap(byteBuffer, idX)
+                dopplerObj = processRangeDopplerHeatMap(byteBuffer, idX, configParameters)
                 finalObj.update(dopplerObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj = processStatistics(byteBuffer, idX)

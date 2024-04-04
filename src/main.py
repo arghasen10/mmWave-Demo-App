@@ -30,6 +30,11 @@ class Schema(Struct):
     noiserp_y: list[float]
     doppz: list[list[int]]
 
+def min_max_scaling(x):
+    min_val = min(x)
+    max_val = max(x)
+    scaled_values = [(val - min_val) / (max_val - min_val) for val in x]
+    return [val * 100 for val in scaled_values]  
 
 class ReadDataThread(Thread):
     def __init__(self, file_path):
@@ -52,7 +57,7 @@ class ReadDataThread(Thread):
         self.doppz = [[]]
         configs = {
             "pointcloud": "Configurations/pointcloud_configuration.cfg",
-            "macro": "Configurations/macro_7fps.cfg",
+            "macro": "Configurations/macro_5fps.cfg",
             "micro": "Configurations/micro_2fps.cfg",
         }
         configFileName = configs["macro"]
@@ -63,15 +68,15 @@ class ReadDataThread(Thread):
 
         # Main loop
         self.detObj = {}
-        frameData = {}
-        currentIndex = 0
         self.filename = file_create()
 
         self.linecounter = 0
 
+  
     def run(self):
         while not self._stop_event.is_set():
             if not self.paused.is_set():
+                data = decode(self.file.readline(), type=Schema)
                 self.linecounter += 1
                 if self.linecounter > 1000000000:
                     self.linecounter = 0
@@ -81,18 +86,20 @@ class ReadDataThread(Thread):
                     dataOk, frameNumber, finalObj = readAndParseData16xx(
                         self.Dataport, self.configParameters, self.filename
                     )
+                    print(len(finalObj['rp']), len(data.rp_y))
                 except KeyboardInterrupt:
                     self.CLIport.write("sensorStop\n".encode())
                     self.CLIport.close()
                     self.Dataport.close()
                     break
-                data = decode(self.file.readline(), type=Schema)
+                
                 with self.lock:
-                    self.x_coord[:] = data.x_coord
-                    self.y_coord[:] = data.y_coord
-                    self.rp_y[:] = data.rp_y
-                    self.noiserp_y[:] = data.noiserp_y
-                    self.doppz[:] = data.doppz
+                    if len(finalObj.keys()) == 16:
+                        self.x_coord[:] = finalObj['x']
+                        self.y_coord[:] = finalObj['y']
+                        self.rp_y[:] = min_max_scaling(finalObj['rp'])
+                        self.noiserp_y[:] = min_max_scaling(finalObj['noiserp'])
+                        self.doppz[:] = finalObj['rangeDoppler']
             self._stop_event.wait(timeout=0.4)
         self._close_file()
 
