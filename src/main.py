@@ -86,7 +86,10 @@ class ReadDataThread(Thread):
                     dataOk, frameNumber, finalObj = readAndParseData16xx(
                         self.Dataport, self.configParameters, self.filename
                     )
-                    print(len(finalObj['rp']), len(data.rp_y))
+                    if dataOk:
+                # Store the current frame into frameData
+                print(finalObj)
+                    # print(len(finalObj['rp']), len(data.rp_y))
                 except KeyboardInterrupt:
                     self.CLIport.write("sensorStop\n".encode())
                     self.CLIport.close()
