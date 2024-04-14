@@ -597,7 +597,15 @@ def readAndParseData16xx(Dataport, configParameters, filename):
             word = [1, 2**8, 2**16, 2**24]
 
             # Check the header of the TLV message
-            tlv_type = np.matmul(byteBuffer[idX : idX + 4], word)
+            try:
+                tlv_type = np.matmul(byteBuffer[idX : idX + 4], word)
+                print("tlv_type:", tlv_type)
+            except:
+                print("issue")
+                continue
+        
+            if tlv_type < 0 or tlv_type > 6:
+                continue
             idX += 4
             tlv_length = np.matmul(byteBuffer[idX : idX + 4], word)
             idX += 4
@@ -619,6 +627,7 @@ def readAndParseData16xx(Dataport, configParameters, filename):
                 heatObj = processAzimuthHeatMap(byteBuffer, idX, configParameters)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
                 dopplerObj = processRangeDopplerHeatMap(byteBuffer, idX, configParameters)
+                print("dopple"  , len(byteBuffer) , idX)
                 finalObj.update(dopplerObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj = processStatistics(byteBuffer, idX)
@@ -666,6 +675,7 @@ def parseArg():
 # Configurate the serial port
 if __name__ == "__main__":
     args = parseArg()
+    print("calling")
     configFileName = configs[args.conf]
     CLIport, Dataport = serialConfig(configFileName)
     # Get the configuration parameters from the configuration file

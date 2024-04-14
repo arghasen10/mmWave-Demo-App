@@ -86,10 +86,7 @@ class ReadDataThread(Thread):
                     dataOk, frameNumber, finalObj = readAndParseData16xx(
                         self.Dataport, self.configParameters, self.filename
                     )
-                    if dataOk:
-                # Store the current frame into frameData
-                print(finalObj)
-                    # print(len(finalObj['rp']), len(data.rp_y))
+                    # print(finalObj)
                 except KeyboardInterrupt:
                     self.CLIport.write("sensorStop\n".encode())
                     self.CLIport.close()
@@ -324,6 +321,7 @@ class ConfigureFrame(ttk.Frame):
 
         buttons.columnconfigure(0, weight=1)
         buttons.columnconfigure(1, weight=1)
+        buttons.columnconfigure(2, weight=1)
         usefile_btn = ttk.Button(
             buttons, text="RERUN PRELOADED ITERATION", command=self.read_and_graph_file
         )
@@ -332,6 +330,10 @@ class ConfigureFrame(ttk.Frame):
             buttons, text="SEND CONFIG TO MMWAVE DEVICE", command=self.send_config
         )
         send_btn.grid(column=1, row=0, padx=10, pady=10, sticky=tk.E)
+        model_btn = ttk.Button(
+            buttons, text="APPLY MODEL", command=self.import_model
+        )
+        model_btn.grid(column=2, row=0, padx=10, pady=10, sticky=tk.E)
 
         for widget in buttons.winfo_children():
             widget.grid(padx=5, pady=5)
@@ -351,6 +353,35 @@ class ConfigureFrame(ttk.Frame):
         read_data.paused.set()
         time.sleep(2)
         read_data.paused.clear()
+    def import_model(self):
+         # Create a new Tkinter window
+        new_window = tk.Toplevel()
+        
+        # Set the title of the window
+        new_window.title("New Model")
+        # Calculate minimum height and width as half of the screen dimensions
+        screen_width = new_window.winfo_screenwidth()
+        screen_height = new_window.winfo_screenheight()
+        min_width = screen_width // 2
+        min_height = screen_height // 2
+        
+        # Set minimum size of the window
+        new_window.minsize(min_width, min_height)
+        
+        # Create a label widget to display the message
+        label = ttk.Label(new_window, text="This is the new model")
+        label.pack(padx=10, pady=10)
+        
+        # Center the window on the screen
+        new_window.update_idletasks()
+        width = new_window.winfo_width()
+        height = new_window.winfo_height()
+        x = (new_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (new_window.winfo_screenheight() // 2) - (height // 2)
+        new_window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+        
+    
+
 
 
 class PlotFrame(ttk.Frame):
