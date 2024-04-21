@@ -7,6 +7,7 @@ from inspect import trace
 from operator import add
 from time import sleep
 from turtle import pd
+import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,18 +64,33 @@ header = [
     "interFrameCPULoad",
 ]
 
-
+#  use this if you want to create csv file  , comment the other one file_create ()
 def file_create():
     filename = os.path.abspath("")
     if os_name == "Windows_NT":
         filename += time.strftime("\%Y%m%d_%H%M%S")
     elif os_name == "Ubuntu":
         filename += time.strftime("/%Y%m%d_%H%M%S")
-    filename += ".csv"
+    filename += ".pkl"
     with open(filename, "w") as f:
         csv.DictWriter(f, fieldnames=header).writeheader()
 
     return filename
+
+
+
+
+# //use the below one if you are making .pkl file  , comment the other one file_create ()
+# def file_create():
+#     filename = os.path.abspath("")
+#     if os.name == "nt":  # For Windows
+#         filename += time.strftime("\\%Y%m%d_%H%M%S")
+#     elif os.name == "posix":  # For Linux, Unix, or macOS
+#         filename += time.strftime("/%Y%m%d_%H%M%S")
+#     filename += ".pkl"
+#     with open(filename, "wb") as f:
+#         pickle.dump({}, f)  # Dump an empty dictionary if needed
+#     return filename
 
 
 # ------------------------------------------------------------------

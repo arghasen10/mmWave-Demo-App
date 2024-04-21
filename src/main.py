@@ -2,6 +2,7 @@ import time
 from threading import Thread, Event, Lock
 
 import tkinter as tk
+import pickle as pickle
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import ttk
@@ -331,7 +332,7 @@ class ConfigureFrame(ttk.Frame):
         )
         send_btn.grid(column=1, row=0, padx=10, pady=10, sticky=tk.E)
         model_btn = ttk.Button(
-            buttons, text="APPLY MODEL", command=self.import_model
+            buttons, text="APPLY MODEL", command=self.browse_file
         )
         model_btn.grid(column=2, row=0, padx=10, pady=10, sticky=tk.E)
 
@@ -356,7 +357,8 @@ class ConfigureFrame(ttk.Frame):
     def import_model(self):
          # Create a new Tkinter window
         new_window = tk.Toplevel()
-        
+        print("read_data from model" , read_data)
+        print("final obj",)
         # Set the title of the window
         new_window.title("New Model")
         # Calculate minimum height and width as half of the screen dimensions
@@ -379,6 +381,33 @@ class ConfigureFrame(ttk.Frame):
         x = (new_window.winfo_screenwidth() // 2) - (width // 2)
         y = (new_window.winfo_screenheight() // 2) - (height // 2)
         new_window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+    def open_model(self):
+        # Create a new Tkinter window
+        self.root = tk.Tk()
+        
+        # Set the title of the window
+        self.root.title("Open .pkl File")
+        
+        # Create a button to browse for the .pkl file
+        browse_button = ttk.Button(self.root, text="Browse", command=self.browse_file)
+        browse_button.pack(padx=10, pady=10)
+        
+        # Start the Tkinter event loop
+        self.root.mainloop()
+        
+    def browse_file(self):
+        # Open a file dialog to select a .pkl file
+        file_path = filedialog.askopenfilename(filetypes=[("Pickle files", "*.pkl")])
+        
+        # If a file is selected
+        if file_path:
+            # Load and execute the .pkl file
+            with open(file_path, 'rb') as file:
+                model = pickle.load(file)
+                # Execute the loaded model (replace this with your actual execution code)
+                print("Executing the model:", model)
+                # Close the Tkinter window after executing
+                self.root.destroy()
         
     
 
@@ -414,20 +443,33 @@ class PlotFrame(ttk.Frame):
         toolbar_dop = NavigationToolbar2Tk(canvas_dop, self, pack_toolbar=False)
         toolbar_dop.update()
 
+        
         toolbar_dop.grid(
-            row=3,
-            column=0,
+            row=3, column=0, sticky=tk.EW,
+            # row=3,
+            # column=0,
             columnspan=2,
-            sticky=tk.EW,
-            padx=self.winfo_screenwidth() // 4,
+            # sticky=tk.EW,
+            # padx=self.winfo_screenwidth() // 4,
         )
         canvas_dop.get_tk_widget().grid(
-            row=2,
-            column=0,
+            row=2, column=0, sticky=tk.NSEW,
+            # row=2,
+            # column=0,
             columnspan=2,
-            sticky=tk.NSEW,
-            padx=self.winfo_screenwidth() // 4,
+            # sticky=tk.NSEW,
+            # padx=self.winfo_screenwidth() // 4,
         )
+        #  # Additional Frame for displaying results
+        result_frame = ttk.Frame(self)
+        result_label = ttk.Label(result_frame, text="Prediction", font=("Noto Sans Mono", 12, "bold"))
+        result_label.pack(padx=10, pady=(20, 5))  # Adjust pady for spacing
+        prediction_text = ttk.Label(result_frame, text="Clapping")
+        prediction_text.pack(padx=10, pady=(5, 20))  # Adjust pady for spacing
+
+        # Grid placement for results frame
+        result_frame.grid(row=2, column=1, columnspan=2, sticky="nsew")
+
 
 
 class App(ThemedTk):
